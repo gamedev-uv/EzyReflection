@@ -1,0 +1,12 @@
+{
+  "name": "com.uv.ezy-reflection",
+  "version": "1.0.0",
+  "displayName": "Ezy Reflection",
+  "description": "A package which aims towards making reflection in Unity easier!",
+  "unity": "2019.1",
+  "author": {
+    "name": "UV",
+    "email": "yuvraj12611@gmail.com",
+    "url": ""
+  }
+}
