@@ -1,11 +1,11 @@
-using UnityEngine;
+using System;
 
 namespace UV.EzyReflection
 {
     /// <summary>
     /// Represents a tree structure of members starting from a root object.
     /// </summary>
-    public class MemberTree
+    public class MemberTree 
     {
         /// <summary>
         /// Initializes a MemberTree class with the specified root member object.
@@ -20,7 +20,16 @@ namespace UV.EzyReflection
         /// <summary>
         /// The root member of the member tree.
         /// </summary>
-        [field: SerializeField] public Member RootMember { get; private set; }
+        public Member RootMember { get; private set; }
+
+        /// <summary>
+        /// Returns all the children under this tree
+        /// </summary>
+        public Member[] GetAllChildren()
+        {
+            if (RootMember == null) return Array.Empty<Member>();
+            return RootMember.GetAllChildren();
+        }
 
         public override string ToString()
         {

@@ -11,6 +11,8 @@ namespace UV.EzyReflection
     /// </summary>
     public class Member
     {
+        public Member() { }
+
         /// <summary>
         /// Initializes a new Member with the specified instance.
         /// </summary>
@@ -20,6 +22,7 @@ namespace UV.EzyReflection
         {
             Instance = instance ?? throw new ArgumentNullException(nameof(instance));
             Name = Instance.ToString();
+            Path = Name;
             MemberType = Instance.GetType();
         }
 
@@ -51,6 +54,11 @@ namespace UV.EzyReflection
         /// The name of the member 
         /// </summary>
         public string Name { get; protected set; }
+
+        /// <summary>
+        /// The path of the member
+        /// </summary>
+        public string Path { get; protected set; }
 
         /// <summary>
         /// The current instance of the object 
@@ -88,14 +96,139 @@ namespace UV.EzyReflection
         public Member[] ChildMembers { get; protected set; }
 
         /// <summary>
+        /// Fetches the value of the current member
+        /// </summary>
+        /// <typeparam name="T">The type of value which is to be fetched</typeparam>
+        /// <returns>The value if fetched else null</returns>
+        public T GetValue<T>()
+        {
+            return MemberInfo.GetValue<T>(ParentObject);
+        }
+
+        /// <summary>
+        /// Fetches the value of the current member
+        /// </summary>
+        /// <returns>The value if fetched else null</returns>
+        public object GetValue()
+        {
+            return MemberInfo.GetValue(ParentObject);
+        }
+
+        /// <summary>
+        /// Sets the value of the member
+        /// </summary>
+        /// <param name="value">The value which is to be set</param>
+        public void SetValue(object value)
+        {
+            MemberInfo.SetValue(ParentObject, value);
+        }
+
+        /// <summary>
+        /// Returns the immediate children under the member
+        /// </summary>
+        public Member[] GetChildren()
+        {
+            if (ChildMembers == null) FindChildren();
+            return ChildMembers ?? Array.Empty<Member>();
+        }
+
+        /// <summary>
+        /// Returns all the children under the member
+        /// </summary>
+        public Member[] GetAllChildren()
+        {
+            if (ChildMembers == null) FindAllChildren();
+
+            var allMembers = Array.Empty<Member>();
+            if (ChildMembers == null || ChildMembers.Length == 0) return allMembers;
+
+            for (int i = 0; i < ChildMembers.Length; i++)
+            {
+                var child = ChildMembers[i];
+                allMembers = allMembers
+                                        .Append(child)
+                                        .Concat(child.GetAllChildren())
+                                        .ToArray();
+            }
+
+            return allMembers;
+        }
+
+        /// <summary>
+        /// Checks whether the current member has an attribute of the given type
+        /// </summary>
+        /// <typeparam name="T">The type of attribute which is to be searched</typeparam>
+        /// <returns>Returns true or false based on if the attribute is present on the member or not</returns>
+        public virtual bool HasAttribute<T>() where T : Attribute
+        {
+            if (!HasAttributes) return false;
+
+            for (int i = 0; i < Attributes.Length; i++)
+            {
+                //Check if the current attribute is of type T
+                var att = Attributes[i];
+                if (att == null) continue;
+                if (att.GetType().Equals(typeof(T))) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether the current member has an attribute of the given type and returns the attribute if found
+        /// </summary>
+        /// <typeparam name="T">The type of attribute which is to be searched</typeparam>
+        /// <param name="attribute">The variable in which the attribute is returned if found</param>
+        /// <returns>Returns true or false based on if the attribute exists on the member and also outputs the attribute if found</returns>
+        public virtual bool TryGetAttribute<T>(out T attribute) where T : Attribute
+        {
+            attribute = null;
+
+            if (!HasAttributes) return false;
+
+            for (int i = 0; i < Attributes.Length; i++)
+            {
+                //Check if the current attribute is of type T
+                var att = Attributes[i];
+                if (att == null) continue;
+                if (att is T typedAtt)
+                {
+                    attribute = typedAtt;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Finds and assigns all the attributes of the member
         /// </summary>
         public virtual void FindAttributes()
         {
-            if(MemberInfo == null)
+            if (MemberInfo == null)
                 Attributes = Instance.GetType().GetCustomAttributes(false).Cast<Attribute>().ToArray();
             else
-                Attributes = MemberInfo.GetCustomAttributes(false).Cast<Attribute>().ToArray();
+                Attributes = MemberInfo.GetAttributes();
+        }
+
+        /// <summary>
+        /// Whether the given child is searchable or not
+        /// </summary>
+        /// <param name="child">The child which is to be searched</param>
+        /// <returns>Returns true or false based on if the child is searchable or not</returns>
+        public virtual bool IsSearchableChild(Member child)
+        {
+            //If the member is a method, 
+            if (child.MemberInfo is MethodInfo) return false;
+
+            //If it is a primitive type or an array; continue to the next one
+            if (child.MemberType.IsPrimitive || child.MemberType.IsArray) return false;
+
+            //If it is a Unity Component
+            if (child.MemberType.IsSubclassOf(typeof(Object))) return false;
+
+            return true;
         }
 
         /// <summary>
@@ -103,57 +236,47 @@ namespace UV.EzyReflection
         /// </summary>
         public virtual void FindChildren()
         {
+            ChildMembers = Array.Empty<Member>();
+
             //Fetch all the children 
             FindAttributes();
             var allMembers = Instance.GetType().GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
 
             //Create an empty list to contain all children 
-            var children = new List<Member>();
             for (int i = 0; i < allMembers.Length; i++)
             {
                 var memberInfo = allMembers[i];
 
                 //If it is a backingfield go to the next one
-                if (memberInfo.Name.Contains("k__BackingField")) continue;
+                var memberName = memberInfo.Name;
+                if (memberName.Contains("k__BackingField")) continue;
 
-                //If it is a field 
-                if (memberInfo is FieldInfo field)
-                {
-                    var fieldValue = field.GetValue(Instance);
-                    if (fieldValue == null) continue;
-                    var fieldMember = new Field(field, fieldValue, Instance);
-                    fieldMember.FindAttributes();
-                    children.Add(fieldMember);
-                }
+                //If it a unity property
+                string[] unityMembers = { "gameObject", "transform", "mesh" };
+                if (memberInfo.HasAttribute<ObsoleteAttribute>() || unityMembers.Contains(memberName)) continue;
 
-                //If it is a property 
-                if (memberInfo is PropertyInfo property)
-                {
-                    var propertyValue = property.GetValue(Instance);
-                    if (propertyValue == null) continue;
-                    var propertyMember = new Property(property, propertyValue, Instance);
-                    propertyMember.FindAttributes();
-                    children.Add(propertyMember);
-                }
+                //Gets the member for the given memberInfo
+                var member = GetMember(memberInfo);
+                if (member == null) continue;
 
-                //If the member if a method 
-                if (memberInfo is MethodInfo method)
-                {
-                    var methodMember = new Method(method, method, Instance);
-                    methodMember.FindAttributes();
-                    children.Add(methodMember);
-                }
+                //Finds the attributes on the member and adds it to the array
+                member.Path = $"{Path}.{(member.MemberInfo is PropertyInfo ? $"<{member.Name}>k__BackingField" : member.Name)}";
+                member.FindAttributes();
+                ChildMembers = ChildMembers.Append(member).ToArray();
             }
-
-            //Assign the found children to the ChildMembers 
-            ChildMembers = children.ToArray();
         }
 
         /// <summary>
         /// Finds all the children of the member
         /// </summary>
-        public virtual void FindAllChildren(int maxDepth = 10, int currentDepth = 0)
+        public virtual void FindAllChildren(int maxDepth = 10, int currentDepth = 0, List<object> visitedObjects = null)
         {
+            //Check if the object has already been searched
+            visitedObjects ??= new();
+            if (visitedObjects.Contains(Instance)) return;
+
+            visitedObjects.Add(Instance);
+
             //Check if the depth has gone past the maxDepth
             if (currentDepth > maxDepth) return;
 
@@ -166,16 +289,28 @@ namespace UV.EzyReflection
             {
                 var child = ChildMembers[i];
 
-                //If the member is a method, a primitive type or an array; continue to the next one
-                if (child is Method) continue;
-                if (child.MemberType.IsPrimitive || child.MemberType.IsArray) continue;
-
-                //If it is a Unity Component
-                if (child.MemberType.IsSubclassOf(typeof(Object))) continue;
+                //Check whether the child is searchable or not
+                if (!IsSearchableChild(child)) continue;
 
                 //Find all children under the current child
-                child.FindAllChildren(maxDepth, currentDepth + 1);
+                child.FindAllChildren(maxDepth, currentDepth + 1, visitedObjects);
             }
+        }
+
+        /// <summary>
+        /// Returns a member for the given memberInfo
+        /// </summary>
+        /// <param name="memberInfo">The memberInfo for which a member is to be returned</param>
+        /// <returns>Returns the newly created member if handled else null</returns>
+        public virtual Member GetMember(MemberInfo memberInfo)
+        {
+            try
+            {
+                var memberValue = GetValue();
+                memberValue ??= memberInfo;
+                return new Member(memberInfo, memberValue, Instance);
+            }
+            catch { return null; }
         }
 
         /// <summary>
@@ -184,7 +319,7 @@ namespace UV.EzyReflection
         /// <returns>Returns the formatted member title</returns>
         public virtual string GetMemberTitle()
         {
-            return $"{Name} [{MemberType}] ({(HasAttributes ? string.Join(',', Attributes.ToList()) : "No attributes")})";
+            return $"{Path} [{MemberType}] ({(HasAttributes ? string.Join(',', Attributes.ToList()) : "No attributes")})";
         }
 
         /// <summary>
