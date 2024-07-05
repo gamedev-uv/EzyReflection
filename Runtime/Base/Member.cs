@@ -11,8 +11,6 @@ namespace UV.EzyReflection
     /// </summary>
     public class Member
     {
-        public Member() { }
-
         /// <summary>
         /// Initializes a new Member with the specified instance.
         /// </summary>
@@ -48,6 +46,15 @@ namespace UV.EzyReflection
         {
             MemberInfo = memberInfo ?? throw new ArgumentNullException(nameof(memberInfo));
             Name = memberInfo.Name;
+
+            if (memberInfo is FieldInfo fieldInfo)
+                MemberType = fieldInfo.FieldType;
+
+            if (memberInfo is PropertyInfo propertyInfo)
+                MemberType = propertyInfo.PropertyType;
+
+            if (memberInfo is MethodInfo methodInfo)
+                MemberType = methodInfo.ReturnType;
         }
 
         /// <summary>
@@ -126,32 +133,30 @@ namespace UV.EzyReflection
         /// <summary>
         /// Returns the immediate children under the member
         /// </summary>
-        public Member[] GetChildren()
+        public T[] GetChildren<T>() where T : Member
         {
-            if (ChildMembers == null) FindChildren();
-            return ChildMembers ?? Array.Empty<Member>();
+            if (ChildMembers == null) return Array.Empty<T>();
+            return ChildMembers.Cast<T>().ToArray() ?? Array.Empty<T>();
         }
 
         /// <summary>
         /// Returns all the children under the member
         /// </summary>
-        public Member[] GetAllChildren()
+        public T[] GetAllChildren<T>() where T : Member
         {
-            if (ChildMembers == null) FindAllChildren();
-
             var allMembers = Array.Empty<Member>();
-            if (ChildMembers == null || ChildMembers.Length == 0) return allMembers;
+            if (ChildMembers == null || ChildMembers.Length == 0) return Array.Empty<T>();
 
             for (int i = 0; i < ChildMembers.Length; i++)
             {
                 var child = ChildMembers[i];
                 allMembers = allMembers
                                         .Append(child)
-                                        .Concat(child.GetAllChildren())
+                                        .Concat(child.GetAllChildren<T>())
                                         .ToArray();
             }
 
-            return allMembers;
+            return allMembers.Cast<T>().ToArray();
         }
 
         /// <summary>
@@ -223,10 +228,11 @@ namespace UV.EzyReflection
             if (child.MemberInfo is MethodInfo) return false;
 
             //If it is a primitive type or an array; continue to the next one
-            if (child.MemberType.IsPrimitive || child.MemberType.IsArray) return false;
+            var memberType = child.MemberType;
+            if (memberType.IsPrimitive || memberType.IsArray || memberType.Equals(typeof(string))) return false;
 
             //If it is a Unity Component
-            if (child.MemberType.IsSubclassOf(typeof(Object))) return false;
+            if (memberType.IsSubclassOf(typeof(Object))) return false;
 
             return true;
         }
@@ -252,7 +258,7 @@ namespace UV.EzyReflection
                 if (memberName.Contains("k__BackingField")) continue;
 
                 //If it a unity property
-                string[] unityMembers = { "gameObject", "transform", "mesh" };
+                string[] unityMembers = { "gameObject", "transform", "mesh", "destroyCancellationToken", "hideFlags" };
                 if (memberInfo.HasAttribute<ObsoleteAttribute>() || unityMembers.Contains(memberName)) continue;
 
                 //Gets the member for the given memberInfo
@@ -262,8 +268,17 @@ namespace UV.EzyReflection
                 //Finds the attributes on the member and adds it to the array
                 member.Path = $"{Path}.{(member.MemberInfo is PropertyInfo ? $"<{member.Name}>k__BackingField" : member.Name)}";
                 member.FindAttributes();
-                ChildMembers = ChildMembers.Append(member).ToArray();
+                AddChild(member);
             }
+        }
+
+        /// <summary>
+        /// Adds the given member as the child of this member
+        /// </summary>
+        /// <param name="child">The child which is to be added</param>
+        public virtual void AddChild(Member child)
+        {
+            ChildMembers = ChildMembers.Append(child).ToArray();
         }
 
         /// <summary>
@@ -304,10 +319,13 @@ namespace UV.EzyReflection
         /// <returns>Returns the newly created member if handled else null</returns>
         public virtual Member GetMember(MemberInfo memberInfo)
         {
+            if (memberInfo is MethodInfo)
+                return new Member(memberInfo, memberInfo, Instance);
+
             try
             {
-                var memberValue = GetValue();
-                memberValue ??= memberInfo;
+                var memberValue = memberInfo.GetValue(Instance);
+                if (memberValue == null) return null;
                 return new Member(memberInfo, memberValue, Instance);
             }
             catch { return null; }
@@ -319,7 +337,7 @@ namespace UV.EzyReflection
         /// <returns>Returns the formatted member title</returns>
         public virtual string GetMemberTitle()
         {
-            return $"{Path} [{MemberType}] ({(HasAttributes ? string.Join(',', Attributes.ToList()) : "No attributes")})";
+            return $"{Name} [{MemberType}] ({(HasAttributes ? string.Join(',', Attributes.ToList()) : "No attributes")})";
         }
 
         /// <summary>
