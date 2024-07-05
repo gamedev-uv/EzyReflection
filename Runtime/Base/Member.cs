@@ -46,15 +46,6 @@ namespace UV.EzyReflection
         {
             MemberInfo = memberInfo ?? throw new ArgumentNullException(nameof(memberInfo));
             Name = memberInfo.Name;
-
-            if (memberInfo is FieldInfo fieldInfo)
-                MemberType = fieldInfo.FieldType;
-
-            if (memberInfo is PropertyInfo propertyInfo)
-                MemberType = propertyInfo.PropertyType;
-
-            if (memberInfo is MethodInfo methodInfo)
-                MemberType = methodInfo.ReturnType;
         }
 
         /// <summary>
@@ -238,6 +229,20 @@ namespace UV.EzyReflection
         }
 
         /// <summary>
+        /// Whether the given member is a valid member 
+        /// </summary>
+        /// <param name="memberInfo">The memberInfo which is to be checked</param>
+        /// <returns>Returns true or false based on whether the given member is a valid member or not</returns>
+        public virtual bool IsValidMember(MemberInfo memberInfo)
+        {
+            //If it is a backingfield go to the next one
+            var memberName = memberInfo.Name;
+            if (memberName.Contains("k__BackingField")) return false;
+            if (memberInfo.HasAttribute<ObsoleteAttribute>()) return false;
+            return true;
+        }
+
+        /// <summary>
         /// Finds the children of the member
         /// </summary>
         public virtual void FindChildren()
@@ -252,14 +257,7 @@ namespace UV.EzyReflection
             for (int i = 0; i < allMembers.Length; i++)
             {
                 var memberInfo = allMembers[i];
-
-                //If it is a backingfield go to the next one
-                var memberName = memberInfo.Name;
-                if (memberName.Contains("k__BackingField")) continue;
-
-                //If it a unity property
-                string[] unityMembers = { "gameObject", "transform", "mesh", "destroyCancellationToken", "hideFlags" };
-                if (memberInfo.HasAttribute<ObsoleteAttribute>() || unityMembers.Contains(memberName)) continue;
+                if (!IsValidMember(memberInfo)) continue;
 
                 //Gets the member for the given memberInfo
                 var member = GetMember(memberInfo);
@@ -313,22 +311,66 @@ namespace UV.EzyReflection
         }
 
         /// <summary>
+        /// Makes and returns a field with the given fieldInfo
+        /// </summary>
+        /// <param name="fieldInfo">The fieldInfo for which a field is to be returned</param>
+        /// <returns>Returns the newly created field for the fieldInfo; Returns null if the value is not fetched</returns>
+        public virtual Field GetField(FieldInfo fieldInfo)
+        {
+            var fieldValue = fieldInfo.GetValue(Instance);
+            if (fieldValue == null) return null;
+            return new(fieldInfo, fieldValue, Instance);
+        }
+
+        /// <summary>
+        /// Makes and returns a property with the given propertyInfo
+        /// </summary>
+        /// <param name="propertyInfo">The propertyInfo for which a property is to be returned</param>
+        /// <returns>Returns the newly created property for the propertyInfo; Returns null if the value is not fetched</returns>
+        public virtual Property GetProperty(PropertyInfo propertyInfo)
+        {
+            var propertyValue = propertyInfo.GetValue(Instance);
+            if (propertyValue == null) return null;
+            return new(propertyInfo, propertyValue, Instance);
+        }
+
+        /// <summary>
+        /// Makes and returns a method with the given methodInfo
+        /// </summary>
+        /// <param name="methodInfo">The methodInfo for which a property is to be returned</param>
+        /// <returns>Returns the newly created method for the methodInfo;</returns>
+        public virtual Method GetMethod(MethodInfo methodInfo)
+        {
+            return new(methodInfo, methodInfo, Instance);
+        }
+
+        /// <summary>
         /// Returns a member for the given memberInfo
         /// </summary>
         /// <param name="memberInfo">The memberInfo for which a member is to be returned</param>
         /// <returns>Returns the newly created member if handled else null</returns>
         public virtual Member GetMember(MemberInfo memberInfo)
         {
-            if (memberInfo is MethodInfo)
-                return new Member(memberInfo, memberInfo, Instance);
-
             try
             {
-                var memberValue = memberInfo.GetValue(Instance);
-                if (memberValue == null) return null;
-                return new Member(memberInfo, memberValue, Instance);
+                //If it is a fieldInfo
+                if (memberInfo is FieldInfo field)
+                    return GetField(field);
+
+                //If it is a propertyInfo 
+                if (memberInfo is PropertyInfo property)
+                    return GetProperty(property);
             }
-            catch { return null; }
+            catch
+            {
+                return null;
+            }
+
+            //If the member if a methodInfo 
+            if (memberInfo is MethodInfo method)
+                return GetMethod(method);
+
+            return null;
         }
 
         /// <summary>
