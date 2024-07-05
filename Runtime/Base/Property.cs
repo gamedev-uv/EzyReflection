@@ -20,7 +20,7 @@ namespace UV.EzyReflection
             MemberType = memberInfo.PropertyType;
 
             //Try finding the backing field of the property
-            var field = PropertyInfo.GetBackingField(parentObject);
+            var field = PropertyInfo.GetBackingField();
             if (field != null)
                 BackingField = new(field, Instance, ParentObject);
         }

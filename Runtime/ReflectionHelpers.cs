@@ -10,6 +10,28 @@ namespace UV.EzyReflection
     public static class ReflectionHelpers
     {
         /// <summary>
+        /// Determines whether a type is a simple type.
+        /// Simple types include primitive types, enums, strings, and some common structs.
+        /// </summary>
+        /// <param name="type">The type to check.</param>
+        /// <returns>True if the type is a simple type; otherwise, false.</returns>
+        public static bool IsSimpleType(this Type type)
+        {
+            if (type == null) return false;
+
+            return
+                type.IsPrimitive ||
+                type.IsEnum ||
+                type.Equals(typeof(string)) ||
+                type.Equals(typeof(decimal)) ||
+                type.Equals(typeof(DateTime)) ||
+                type.Equals(typeof(DateTimeOffset)) ||
+                type.Equals(typeof(TimeSpan)) ||
+                type.Equals(typeof(Array)) ||
+                type.Equals(typeof(Guid));
+        }
+
+        /// <summary>
         /// Fetches the value for the current member in the given object
         /// </summary>
         /// <typeparam name="T">The type of value to be fetched</typeparam>
@@ -100,11 +122,10 @@ namespace UV.EzyReflection
         /// Finds and returns the backing field for the given property 
         /// </summary>
         /// <param name="property">The property for which the backing field is to be fetched</param>
-        /// <param name="parentObject">The object that contains the memberInfo</param>
         /// <returns>Returns the field if found else null</returns>
-        public static FieldInfo GetBackingField(this PropertyInfo property, object parentObject)
+        public static FieldInfo GetBackingField(this PropertyInfo property)
         {
-            return parentObject.GetType().GetField($"<{property.Name}>k__BackingField",
+            return property.DeclaringType.GetField($"<{property.Name}>k__BackingField",
                                                   BindingFlags.Public
                                                   | BindingFlags.NonPublic
                                                   | BindingFlags.Instance);
@@ -114,23 +135,20 @@ namespace UV.EzyReflection
         /// Fetches all the attributes on the given member info
         /// </summary>
         /// <param name="memberInfo">The memberinfo for which the attributes are to be fetched</param>
-        /// <param name="parentObject">The object that contains the memberInfo</param>
         /// <returns>Returs the attributes on the given memberinfo</returns>
-        public static Attribute[] GetAttributes(this MemberInfo memberInfo, object parentObject = null)
+        public static Attribute[] GetAttributes(this MemberInfo memberInfo)
         {
             if (memberInfo == null) return Array.Empty<Attribute>();
-            var members = memberInfo.GetCustomAttributes(false).Cast<Attribute>();
-
-            if (memberInfo is PropertyInfo && parentObject != null)
+            var attributes = Attribute.GetCustomAttributes(memberInfo, true).Cast<Attribute>();
+            if (memberInfo is PropertyInfo property)
             {
-                //Try finding the backing field of the property
-                var field = parentObject.GetType().GetField($"<{memberInfo.Name}>k__BackingField",
-                                                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                ////Try finding the backing field of the property
+                var field = GetBackingField(property);
                 if (field != null)
-                    members.Concat(field.GetAttributes());
+                    attributes = attributes.Concat(field.GetCustomAttributes<Attribute>(true));
             }
 
-            return members.ToArray();
+            return attributes.ToArray();
         }
 
         /// <summary>
@@ -142,7 +160,7 @@ namespace UV.EzyReflection
         /// <returns>Returns true or false based on if the attribute is present on the member or not</returns>
         public static bool HasAttribute<T>(this MemberInfo memberInfo, object parentObject = null) where T : Attribute
         {
-            var attributes = GetAttributes(memberInfo, parentObject);
+            var attributes = GetAttributes(memberInfo);
 
             for (int i = 0; i < attributes.Length; i++)
             {
