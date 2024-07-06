@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using Object = UnityEngine.Object;
-using UnityEngine;
 
 namespace UV.EzyReflection
 {
@@ -47,6 +46,15 @@ namespace UV.EzyReflection
         {
             MemberInfo = memberInfo;
             Name = memberInfo.Name;
+
+            if (memberInfo is FieldInfo fieldInfo)
+                MemberType = fieldInfo.FieldType;
+
+            if (memberInfo is PropertyInfo propertyInfo)
+                MemberType = propertyInfo.PropertyType;
+
+            if (memberInfo is MethodInfo methodInfo)
+                MemberType = methodInfo.ReturnType;
         }
 
         /// <summary>
@@ -217,11 +225,12 @@ namespace UV.EzyReflection
         public virtual bool IsSearchableChild(Member child)
         {
             //If the member is a method, 
-            if (child.MemberInfo is MethodInfo) return false;
+            if (child.MemberInfo is MethodBase) return false;
 
             //If it is a primitive type or an array; continue to the next one
             var memberType = child.MemberType;
             if (memberType.IsSimpleType()) return false;
+            if (memberType.IsSubclassOf(typeof(Object))) return false;
             return true;
         }
 
