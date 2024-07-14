@@ -4,9 +4,12 @@
   "displayName": "Ezy Reflection",
   "description": "A package which aims towards making reflection in Unity easier!",
   "unity": "2019.1",
+  "documentationUrl": "https://github.com/gamedev-uv/EzyReflection",
+  "changelogUrl": "https://github.com/gamedev-uv/EzyReflection/commits",
+  "licensesUrl": "https://github.com/gamedev-uv/EzyReflection/blob/main/LICENSE",
   "author": {
     "name": "UV",
     "email": "yuvraj12611@gmail.com",
-    "url": ""
+    "url": "https://github.com/gamedev-uv"
   }
 }
