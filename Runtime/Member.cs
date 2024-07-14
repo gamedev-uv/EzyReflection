@@ -196,11 +196,11 @@ namespace UV.EzyReflection
                 //Check if the current attribute is of type T
                 var att = Attributes[i];
                 if (att == null) continue;
-                if (att is T typedAtt)
-                {
-                    attribute = typedAtt;
-                    return true;
-                }
+                if (att is not T typedAtt) continue;
+
+                //If the attribute is found return true and the attribute
+                attribute = typedAtt;
+                return true;
             }
 
             return false;
