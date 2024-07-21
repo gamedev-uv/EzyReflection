@@ -96,11 +96,16 @@ namespace UV.EzyReflection
             if (member is PropertyInfo property)
             {
                 var propertyType = property.PropertyType;
-                if (propertyType.IsEnum)
-                    value = Enum.ToObject(propertyType, value);
-                else
-                    value = Convert.ChangeType(value, propertyType);
+                try
+                {
+                    if (propertyType.IsEnum)
+                        value = Enum.ToObject(propertyType, value);
+                    else
+                        value = Convert.ChangeType(value, propertyType);
+                }
+                catch { }
 
+                UnityEngine.Debug.Log($"Setting value to : {member} => {value} [{propertyType}]");
                 property.SetValue(parentObject, value, null);
             }
         }

@@ -344,10 +344,10 @@ namespace UV.EzyReflection
         /// <param name="memberName">The name of the member</param>
         /// <param name="searchUnderChildren">Whether the member is to be searched under all the children as well</param>
         /// <returns>Returns the member if found else null</returns>
-        public virtual T FindMember<T>(string memberName, bool searchUnderChildren = false) where T : Member
+        public virtual Member FindMember(string memberName, bool searchUnderChildren = false) 
         {
             //Look under immediate children
-            var children = GetChildren<T>();
+            var children = GetChildren<Member>();
             for (int i = 0; i < children.Length; i++)
             {
                 var child = children[i];
@@ -367,13 +367,25 @@ namespace UV.EzyReflection
                 if (child == null) continue;
 
                 //Search it under the child
-                var foundMember = child.FindMember<T>(memberName, searchUnderChildren);
+                var foundMember = child.FindMember(memberName, searchUnderChildren);
                 if (foundMember == null) continue;
 
                 //If found then return it
                 return foundMember;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Finds the member with the given name under this member 
+        /// </summary>
+        /// <typeparam name="T">The type of members to be searched</typeparam>
+        /// <param name="memberName">The name of the member</param>
+        /// <param name="searchUnderChildren">Whether the member is to be searched under all the children as well</param>
+        /// <returns>Returns the member if found else null</returns>
+        public virtual T FindMember<T>(string memberName, bool searchUnderChildren = false) where T : Member
+        {
+            return FindMember(memberName, searchUnderChildren) as T;
         }
 
         /// <summary>
