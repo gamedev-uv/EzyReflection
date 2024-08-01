@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 using Object = UnityEngine.Object;
+using System.Text;
 
 namespace UV.EzyReflection
 {
@@ -440,14 +441,14 @@ namespace UV.EzyReflection
         /// <returns>Returns the string representation of the member with the given indent</returns>
         public virtual string GetString(int indent = 0)
         {
-            var output = GetMemberTitle();
-            if (ChildMembers == null || ChildMembers.Length == 0) return output;
+            var output = new StringBuilder(GetMemberTitle());
+            if (ChildMembers == null || ChildMembers.Length == 0) return output.ToString();
 
-            output += " : ";
+            output.Append(" : ");
             for (int i = 0; i < ChildMembers.Length; i++)
-                output += $"\n{new string(' ', indent * 2)} - {ChildMembers[i].GetString(indent + 1)}";
+                output.Append($"\n{new string(' ', indent * 2)} - {ChildMembers[i].GetString(indent + 1)}");
 
-            return output;
+            return output.ToString();
         }
 
         public override string ToString()
