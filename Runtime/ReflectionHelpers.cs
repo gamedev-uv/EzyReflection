@@ -20,6 +20,7 @@ namespace UV.EzyReflection
             if (type == null) return false;
 
             return
+                type.Equals(typeof(Type)) ||
                 type.IsPrimitive ||
                 type.IsEnum ||
                 type.Equals(typeof(string)) ||
