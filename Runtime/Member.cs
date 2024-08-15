@@ -283,6 +283,7 @@ namespace UV.EzyReflection
         /// <param name="child">The child which is to be added</param>
         public virtual void AddChild(Member child)
         {
+            ChildMembers ??= Array.Empty<Member>();
             ChildMembers = ChildMembers.Append(child).ToArray();
         }
 
