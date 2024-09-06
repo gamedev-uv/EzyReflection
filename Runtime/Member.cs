@@ -252,8 +252,6 @@ namespace UV.EzyReflection
         /// <returns>Returns true or false based on whether the given member is a valid member or not</returns>
         public virtual bool IsValidMember(MemberInfo memberInfo)
         {
-            if (memberInfo is MethodBase) return false;
-
             var memberName = memberInfo.Name;
             if (memberName.Contains("k__BackingField")) return false;
 
