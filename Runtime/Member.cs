@@ -239,6 +239,8 @@ namespace UV.EzyReflection
         /// <returns>Returns true or false based on if the type is searchable or not</returns>
         public virtual bool IsSearchableType(Type type, bool unityTypes = false)
         {
+            if (type == null) return false;
+
             //If it is a primitive type or an array; continue to the next one
             if (type.IsSimpleType()) return false;
             if (type.IsSubclassOf(typeof(Object)) && !unityTypes) return false;
