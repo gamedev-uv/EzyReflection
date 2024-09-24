@@ -294,6 +294,7 @@ namespace UV.EzyReflection
 
                     // Gets the member for the given memberInfo
                     var member = GetMember(memberInfo);
+                    if (member == null) continue;
 
                     // Finds the attributes on the member and adds it to the array
                     member.Path = $"{Path}.{(memberInfo is PropertyInfo ? $"<{member.Name}>k__BackingField" : member.Name)}";
@@ -325,6 +326,7 @@ namespace UV.EzyReflection
             for (int i = 0; i < ChildMembers.Length; i++)
             {
                 var child = ChildMembers[i];
+                if (child == null) continue;
 
                 //Check whether the child is searchable or not
                 if (!IsSearchableChild(child))
