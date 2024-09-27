@@ -17,7 +17,6 @@ namespace UV.EzyReflection
         /// Initializes a new Member with the specified instance.
         /// </summary>
         /// <param name="instance">The instance of the object that this member represents.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the instance is null.</exception>
         public Member(object instance)
         {
             Instance = instance;
@@ -31,7 +30,6 @@ namespace UV.EzyReflection
         /// </summary>
         /// <param name="instance">The instance of the object that this member represents.</param>
         /// <param name="parentObject">The parent object of this member.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the instance is null.</exception>
         private Member(object instance, object parentObject) : this(instance)
         {
             ParentObject = parentObject;
@@ -43,7 +41,6 @@ namespace UV.EzyReflection
         /// <param name="memberInfo">The MemberInfo that provides information about this member.</param>
         /// <param name="instance">The instance of the object that this member represents.</param>
         /// <param name="parentObject">The parent object of this member.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the instance is null.</exception>
         public Member(MemberInfo memberInfo, object instance, object parentObject) : this(instance, parentObject)
         {
             MemberInfo = memberInfo;
@@ -244,6 +241,8 @@ namespace UV.EzyReflection
             //If it is a primitive type or an array; continue to the next one
             if (type.IsSimpleType()) return false;
             if (type.IsSubclassOf(typeof(Object)) && !unityTypes) return false;
+            if (type.Equals(typeof(System.Threading.CancellationToken))) return false;
+            if (type.Equals(typeof(System.Threading.CancellationTokenSource))) return false;
             return true;
         }
 
@@ -254,11 +253,11 @@ namespace UV.EzyReflection
         /// <returns>Returns true or false based on whether the given member is a valid member or not</returns>
         public virtual bool IsValidMember(MemberInfo memberInfo)
         {
+            if (memberInfo == null) return false;
+
             var memberName = memberInfo.Name;
             if (memberName.Contains("k__BackingField")) return false;
-
             if (memberInfo.HasAttribute<ObsoleteAttribute>()) return false;
-            if (memberInfo.ReflectedType == typeof(System.Threading.CancellationToken)) return false;
             return true;
         }
 
@@ -297,7 +296,7 @@ namespace UV.EzyReflection
                     if (member == null) continue;
 
                     // Finds the attributes on the member and adds it to the array
-                    member.Path = $"{Path}.{(memberInfo is PropertyInfo ? $"<{member.Name}>k__BackingField" : member.Name)}";
+                    member.Path = $"{Path}.{(memberInfo is PropertyInfo ? $"<{member?.Name}>k__BackingField" : member?.Name)}";
                     member.FindAttributes();
                     members.Add(member);
                 }
@@ -366,8 +365,10 @@ namespace UV.EzyReflection
                 memberValue ??= memberInfo;
                 return new Member(memberInfo, memberValue, Instance);
             }
-            catch { }
-            return null;
+            catch
+            {
+                return new Member(memberInfo, memberInfo, Instance);
+            }
         }
 
         /// <summary>
@@ -388,6 +389,7 @@ namespace UV.EzyReflection
 
                 //If the name matches then return the child 
                 var childName = child.Name;
+                if (childName == null) continue;
                 if (childName.Equals(memberName) || childName.Equals($"<{memberName}>k__BackingField"))
                     return child;
             }

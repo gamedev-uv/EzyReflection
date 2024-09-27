@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
 
 namespace UV.EzyReflection
 {
@@ -59,7 +60,7 @@ namespace UV.EzyReflection
                 if (member is PropertyInfo property)
                 {
                     var type = property.PropertyType;
-                    return property.GetValue(obj);
+                    return property.GetValue(obj, null);
                 }
 
                 // If the obj is a field, return its value   
