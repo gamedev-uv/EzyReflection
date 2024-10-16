@@ -1,10 +1,10 @@
 using System;
+using System.Text;
 using System.Linq;
+using UnityEngine;
 using System.Reflection;
 using System.Collections.Generic;
 using Object = UnityEngine.Object;
-using System.Text;
-using UnityEngine;
 
 namespace UV.EzyReflection
 {
@@ -210,10 +210,11 @@ namespace UV.EzyReflection
         /// </summary>
         public virtual void FindAttributes()
         {
-            if (MemberInfo == null)
-                Attributes = Instance.GetType().GetCustomAttributes().Cast<Attribute>().ToArray();
-            else
-                Attributes = MemberInfo.GetAttributes();
+            Attributes = Array.Empty<Attribute>();
+            if (MemberInfo != null)
+                Attributes = Attributes.Concat(MemberInfo.GetAttributes()).ToArray();
+
+            Attributes = Attributes.Concat(Instance.GetType().GetCustomAttributes().Cast<Attribute>()).ToArray();
         }
 
         /// <summary>
@@ -296,7 +297,8 @@ namespace UV.EzyReflection
                     if (member == null) continue;
 
                     // Finds the attributes on the member and adds it to the array
-                    member.Path = $"{Path}.{(memberInfo is PropertyInfo ? $"<{member?.Name}>k__BackingField" : member?.Name)}";
+                    var name = memberInfo is PropertyInfo && !string.IsNullOrEmpty(member?.Name) ? $"<{member.Name}>k__BackingField" : member?.Name;
+                    member.Path = $"{Path}.{name}";
                     member.FindAttributes();
                     members.Add(member);
                 }
@@ -329,10 +331,7 @@ namespace UV.EzyReflection
 
                 //Check whether the child is searchable or not
                 if (!IsSearchableChild(child))
-                {
-                    Debug.Log(child);
                     continue;
-                } 
 
                 //Find all children under the current child
                 child.FindAllChildren(maxDepth, currentDepth + 1, visitedObjects);
