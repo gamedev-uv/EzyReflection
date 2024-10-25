@@ -360,7 +360,18 @@ namespace UV.EzyReflection
 
             try
             {
-                var memberValue = memberInfo.GetValue(Instance);
+                object memberValue = null;
+                if (Instance is Renderer renderer)
+                {
+                    if (memberInfo.Name.Equals("material"))
+                        memberValue = Application.isPlaying ? renderer.material : renderer.sharedMaterial;
+
+                    if (memberInfo.Name.Equals("materials"))
+                        memberValue = Application.isPlaying ? renderer.materials : renderer.sharedMaterials;
+                }
+                else
+                    memberValue = memberInfo.GetValue(Instance);
+
                 memberValue ??= memberInfo;
                 return new Member(memberInfo, memberValue, Instance);
             }
