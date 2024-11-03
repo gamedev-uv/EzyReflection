@@ -287,6 +287,8 @@ namespace UV.EzyReflection
                                                         BindingFlags.Static |
                                                         BindingFlags.DeclaredOnly);
 
+                var currentTypeMembers = new List<Member>();
+
                 for (int i = 0; i < allMembers.Length; i++)
                 {
                     var memberInfo = allMembers[i];
@@ -300,10 +302,11 @@ namespace UV.EzyReflection
                     var name = memberInfo is PropertyInfo && !string.IsNullOrEmpty(member?.Name) ? $"<{member.Name}>k__BackingField" : member?.Name;
                     member.Path = $"{Path}.{name}";
                     member.FindAttributes();
-                    members.Add(member);
+                    currentTypeMembers.Add(member);
                 }
 
                 currentType = currentType.BaseType;
+                members = currentTypeMembers.Concat(members).ToList();
             }
 
             ChildMembers = members.ToArray();
