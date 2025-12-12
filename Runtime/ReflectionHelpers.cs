@@ -59,6 +59,12 @@ namespace UV.EzyReflection
                 // If the obj is a property, return its value
                 if (member is PropertyInfo property)
                 {
+#if UNITY_6000_0_OR_NEWER
+                    // Unity 6: Reflective access to TerrainData properties (e.g. atlasFormat)
+                    // can crash the editor at the native level.
+                    if (property.DeclaringType == typeof(TerrainData))
+                        return null;
+#endif
                     var type = property.PropertyType;
                     return property.GetValue(obj, null);
                 }
