@@ -20,7 +20,7 @@ namespace UV.EzyReflection
         public Member(object instance)
         {
             Instance = instance;
-            Name = Instance?.ToString();
+            Name = GetSafeName(Instance);
             Path = Name;
             MemberType = Instance?.GetType();
         }
@@ -501,6 +501,25 @@ namespace UV.EzyReflection
         public override string ToString()
         {
             return GetString();
+        }
+        
+        private static string GetSafeName(object instance)
+        {
+            if (instance == null)
+                return "null";
+
+            // Unity objects: never call ToString()
+            if (instance is UnityEngine.Object uObj)
+                return uObj.name;
+
+            // NetworkBehaviours / engine objects: use type name
+            var type = instance.GetType();
+
+            // Avoid overridden ToString() entirely
+            if (type.IsSubclassOf(typeof(MonoBehaviour)))
+                return type.Name;
+
+            return type.Name;
         }
     }
 }
