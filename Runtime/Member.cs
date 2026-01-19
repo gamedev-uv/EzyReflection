@@ -20,6 +20,7 @@ namespace UV.EzyReflection
         public Member(object instance)
         {
             Instance = instance;
+            Debug.Log("hey");
             Name = GetSafeName(Instance);
             Path = Name;
             MemberType = Instance?.GetType();
